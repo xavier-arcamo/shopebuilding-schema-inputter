@@ -696,22 +696,94 @@ meta:
       const lines = yamlText.split(/\r?\n/);
       const stack = [];
       const comments = {};
-      lines.forEach((line) => {
-        const match = line.match(/^(\s*)([^#:\n]+):[^#\n]*#(.*)$/);
-        if (!match) {
+      const pendingComments = {};
+
+      const setPendingComment = (indent, comment) => {
+        const cleaned = comment.trim();
+        if (!cleaned) {
           return;
         }
-        const indent = match[1].length;
-        const key = match[2].trim();
-        const comment = match[3].trim();
-        while (stack.length && stack[stack.length - 1].indent >= indent) {
+        if (pendingComments[indent]) {
+          pendingComments[indent] = `${pendingComments[indent]} ${cleaned}`.trim();
+        } else {
+          pendingComments[indent] = cleaned;
+        }
+      };
+
+      const consumePendingComment = (indent) => {
+        const comment = pendingComments[indent];
+        if (comment) {
+          delete pendingComments[indent];
+        }
+        return comment;
+      };
+
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return;
+        }
+
+        const commentOnlyMatch = line.match(/^(\s*)#(.*)$/);
+        if (commentOnlyMatch) {
+          const indent = commentOnlyMatch[1].length;
+          setPendingComment(indent, commentOnlyMatch[2]);
+          return;
+        }
+
+        const inlineMatch = line.match(/^(\s*)(?:-\s*)?([^#:\n]+):[^#\n]*#(.*)$/);
+        const keyMatch = line.match(/^(\s*)(?:-\s*)?([^#:\n]+):/);
+        if (!keyMatch) {
+          return;
+        }
+
+        const indent = keyMatch[1].length;
+        const key = keyMatch[2].trim();
+        const isArrayItem = line.trimStart().startsWith("-");
+        const keyIndent = isArrayItem ? indent + 2 : indent;
+
+        Object.keys(pendingComments).forEach((pendingIndent) => {
+          if (Number(pendingIndent) > keyIndent) {
+            delete pendingComments[pendingIndent];
+          }
+        });
+
+        while (stack.length && stack[stack.length - 1].indent >= keyIndent) {
           stack.pop();
         }
-        stack.push({ key, indent });
+
+        if (isArrayItem && (!stack.length || stack[stack.length - 1].key !== "*")) {
+          stack.push({ key: "*", indent });
+        } else if (isArrayItem && stack.length) {
+          while (stack.length && stack[stack.length - 1].indent > indent) {
+            stack.pop();
+          }
+          if (!stack.length || stack[stack.length - 1].key !== "*") {
+            stack.push({ key: "*", indent });
+          }
+        }
+
+        stack.push({ key, indent: keyIndent });
+
         const path = stack.map((item) => item.key).join(".");
-        comments[path] = comment;
+        const comment = inlineMatch ? inlineMatch[3].trim() : consumePendingComment(keyIndent);
+        if (comment) {
+          comments[path] = comment;
+        }
       });
+
       return comments;
+    }
+
+    function normalizeCommentPath(path) {
+      return path
+        .split(".")
+        .map((part) => (/^\d+$/.test(part) ? "*" : part))
+        .join(".");
+    }
+
+    function getCommentForPath(path) {
+      return commentMap[path] || commentMap[normalizeCommentPath(path)] || "";
     }
 
     function parseTemplate() {
@@ -864,7 +936,7 @@ meta:
       field.appendChild(label);
 
       let input;
-      const comment = commentMap[path];
+      const comment = getCommentForPath(path);
       const stringValue = value === null || value === undefined ? "" : value;
       const useTextarea =
         typeof stringValue === "string" &&
@@ -889,6 +961,9 @@ meta:
 
       input.id = path;
       input.value = stringValue === null ? "" : String(stringValue);
+      if (comment) {
+        input.title = comment;
+      }
       input.addEventListener("input", (event) => {
         const newValue = event.target.value;
         if (type === "number") {
@@ -921,7 +996,7 @@ meta:
       details.appendChild(summary);
 
       const list = document.createElement("div");
-      const comment = commentMap[path];
+      const comment = getCommentForPath(path);
 
       const arrayType = getArrayType(path, arrayValue);
 
@@ -932,6 +1007,9 @@ meta:
         <option value="object">Array of objects</option>
       `;
       typeSelector.value = arrayType;
+      if (comment) {
+        typeSelector.title = comment;
+      }
       typeSelector.addEventListener("change", (event) => {
         arrayTypeOverrides[path] = event.target.value;
         if (event.target.value === "scalar") {
@@ -991,6 +1069,9 @@ meta:
           const itemField = document.createElement("input");
           itemField.type = "text";
           itemField.value = item === null || item === undefined ? "" : String(item);
+          if (comment) {
+            itemField.title = comment;
+          }
           itemField.addEventListener("input", (event) => {
             currentArray[index] = event.target.value;
             setValueAtPath(path, currentArray);
