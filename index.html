@@ -332,6 +332,14 @@
           <select id="themePreset">
             <option value="light">Light</option>
             <option value="dark">Dark</option>
+            <option value="aurora">Aurora</option>
+            <option value="sunset">Sunset Pop</option>
+            <option value="tropical">Tropical Punch</option>
+            <option value="berry">Berry Fizz</option>
+            <option value="ocean">Ocean Glow</option>
+            <option value="citrus">Citrus Spark</option>
+            <option value="neon">Neon Circuit</option>
+            <option value="midnight">Midnight Bloom</option>
             <option value="custom">Custom</option>
           </select>
         </div>
@@ -542,6 +550,78 @@ meta:
         "--text": "#edf0f6",
         "--muted": "#b3b8c4",
         "--danger": "#f87171"
+      },
+      aurora: {
+        "--bg": "#f2fbff",
+        "--panel": "#ffffff",
+        "--border": "#c7e3f5",
+        "--accent": "#2f9cf4",
+        "--text": "#16324f",
+        "--muted": "#4b6a88",
+        "--danger": "#d72638"
+      },
+      sunset: {
+        "--bg": "#fff4ef",
+        "--panel": "#ffffff",
+        "--border": "#ffd0bf",
+        "--accent": "#ff6b3d",
+        "--text": "#3b1b14",
+        "--muted": "#7a4f42",
+        "--danger": "#d62828"
+      },
+      tropical: {
+        "--bg": "#f0fffb",
+        "--panel": "#ffffff",
+        "--border": "#b6f2df",
+        "--accent": "#11bfa9",
+        "--text": "#0e3a35",
+        "--muted": "#2f6c63",
+        "--danger": "#e63946"
+      },
+      berry: {
+        "--bg": "#fff2f7",
+        "--panel": "#ffffff",
+        "--border": "#f4b4d3",
+        "--accent": "#c026d3",
+        "--text": "#35152d",
+        "--muted": "#6a3b63",
+        "--danger": "#e11d48"
+      },
+      ocean: {
+        "--bg": "#eef7ff",
+        "--panel": "#ffffff",
+        "--border": "#b8d8ff",
+        "--accent": "#2563eb",
+        "--text": "#102a43",
+        "--muted": "#3e5c76",
+        "--danger": "#dc2626"
+      },
+      citrus: {
+        "--bg": "#fffbea",
+        "--panel": "#ffffff",
+        "--border": "#ffe08a",
+        "--accent": "#f59e0b",
+        "--text": "#3b2f0b",
+        "--muted": "#7a5c2b",
+        "--danger": "#d97706"
+      },
+      neon: {
+        "--bg": "#0b1020",
+        "--panel": "#141b2d",
+        "--border": "#293352",
+        "--accent": "#00f5d4",
+        "--text": "#f4f7ff",
+        "--muted": "#9aa3b8",
+        "--danger": "#ff4d6d"
+      },
+      midnight: {
+        "--bg": "#150b2f",
+        "--panel": "#1e1240",
+        "--border": "#34205f",
+        "--accent": "#a855f7",
+        "--text": "#f5f3ff",
+        "--muted": "#c4b5fd",
+        "--danger": "#fb7185"
       }
     };
 
@@ -828,6 +908,13 @@ meta:
             result[key] = deepClone(template[key]);
           }
         });
+        if (state && typeof state === "object") {
+          Object.keys(state).forEach((key) => {
+            if (!Object.prototype.hasOwnProperty.call(result, key)) {
+              result[key] = deepClone(state[key]);
+            }
+          });
+        }
         return result;
       }
       if (state === undefined || state === null) {
