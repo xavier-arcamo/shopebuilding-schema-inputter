@@ -1,1 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YAML Prompt Schema Builder</title>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f7fb;
+      --panel: #ffffff;
+      --border: #d6d6e3;
+      --accent: #3b6dde;
+      --text: #1f2430;
+      --muted: #5b6270;
+      --danger: #b91c1c;
+    }
 
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", Tahoma, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      margin: 0 0 12px 0;
+      font-size: 20px;
+    }
+
+    .top-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .control-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .control-panel label {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: "Fira Mono", "Consolas", monospace;
+      font-size: 13px;
+      background: #fcfcff;
+      color: var(--text);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 14px;
+    }
+
+    button {
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #e5e7f5;
+      color: var(--text);
+    }
+
+    button.danger {
+      background: var(--danger);
+    }
+
+    button.small {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .error {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    main {
+      padding: 24px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      max-height: calc(100vh - 240px);
+      overflow: auto;
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    .helper {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    details {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      background: #fafaff;
+    }
+
+    summary {
+      font-weight: 700;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .array-item,
+    .object-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: #fff;
+    }
+
+    .array-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .inline {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .inline label {
+      margin: 0;
+    }
+
+    .output-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .debug-list {
+      font-family: "Fira Mono", "Consolas", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 980px) {
+      .top-controls,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        max-height: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>YAML Prompt Schema Builder</h1>
+    <div class="top-controls">
+      <div class="control-panel">
+        <label for="templateFile">Upload YAML Template</label>
+        <input type="file" id="templateFile" accept=".yaml,.yml" />
+        <button id="loadSample" class="secondary">Load Sample Template</button>
+        <label for="templateEditor">Template Editor</label>
+        <textarea id="templateEditor" spellcheck="false"></textarea>
+        <div class="inline">
+          <button id="parseTemplate">Parse / Refresh Form</button>
+          <button id="resetTemplate" class="secondary">Reset to Template Defaults</button>
+        </div>
+        <div id="parseError" class="error" role="alert" aria-live="polite"></div>
+      </div>
+      <div class="control-panel">
+        <label for="wrapToggle">Wrap as LLM instruction</label>
+        <div class="inline">
+          <input type="checkbox" id="wrapToggle" />
+          <span class="muted">Include instruction header before YAML output.</span>
+        </div>
+        <label for="headerEditor">Instruction Header</label>
+        <textarea id="headerEditor" rows="4"></textarea>
+        <div class="inline">
+          <button id="generateOutput">Generate YAML Schema</button>
+          <button id="copyOutput" class="secondary">Copy Output</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="layout">
+      <section class="panel" aria-label="Generated form">
+        <h2>Generated Form</h2>
+        <div id="formContainer"></div>
+      </section>
+      <section class="panel" aria-label="Output YAML">
+        <h2>Output YAML</h2>
+        <textarea id="output" readonly></textarea>
+        <div class="output-actions">
+          <button id="copyOutputFooter" class="secondary">Copy Output</button>
+        </div>
+        <details>
+          <summary>Debug: inferred field types</summary>
+          <div id="debugInfo" class="debug-list"></div>
+        </details>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const SAMPLE_TEMPLATE = `page_type: religion
+canon_level: primary
+invention_permission: none
+
+identity:
+  name:
+  alternate_names: []
+  classification:            # monotheistic, polytheistic, dualist, animist, philosophical
+  origin_era_or_year:
+  origin_region:
+  current_status:            # dominant, minority, persecuted, extinct, revived
+
+cosmology:
+  supreme_deity_or_principle:
+  pantheon_or_entities: []   # gods, spirits, emanations, saints
+  metaphysical_structure:    # planes, cycles, afterlife, judgment
+  creation_narrative:        # 1–2 lines summary
+
+doctrine:
+  core_beliefs: []           # bullet axioms
+  moral_laws_or_ethics: []   # commandments, virtues, prohibitions
+  view_of_humanity:
+  view_of_magic_or_power:
+  heresies_or_schisms: []    # named doctrines or movements
+
+canon_and_texts:
+  canon_status:              # closed, open, disputed
+  primary_texts:
+    - title:
+      type:                  # scripture, commentary, hymn, law-code
+      attributed_author:
+      era:
+      canonical_status:      # orthodox, apocryphal, heretical
+      summary:               # 1 line
+  secondary_texts: []        # same structure, optional
+
+figures_and_thinkers:
+  founders_or_prophets: []   # names only
+  saints_or_exemplars: []    # martyrs, heroes, avatars
+  theologians_or_scholars: []# interpreters, reformers
+  contested_figures: []     # disputed or schismatic leaders
+
+institutions_and_clergy:
+  organizational_structure:  # priesthood, monastic orders, lay councils
+  ranks_or_titles: []
+  ordination_or_membership:
+  central_authority:         # yes/no + description
+
+rites_and_practices:
+  core_rituals: []           # sacraments, prayers, festivals
+  holy_days_or_cycles: []
+  dietary_or_behavioral_laws: []
+  pilgrimage_practices:
+
+holy_and_important_sites:
+  central_holy_sites:
+    - name:
+      location:
+      significance:
+  secondary_sites: []        # same structure
+  lost_or_destroyed_sites: []
+
+geographic_and_cultural_reach:
+  regions_of_practice: []
+  cultures_or_peoples: []
+  missionary_or_expansion_practices:
+
+historical_footprint:
+  major_events: []           # councils, revelations, persecutions
+  reforms_or_splits: []
+  political_influence:
+  conflicts_with_other_religions: []
+
+meta:
+  narrative_role:            # background, central, antagonistic, reformist
+  related_characters: []
+  related_factions: []
+  related_events: []
+  tags: []                   # filtering (e.g., "state religion", "mystery cult")
+`;
+
+    const DEFAULT_HEADER =
+      "Using the following YAML, write a wiki-style entry. Follow canon_level and invention_permission constraints. Expand empty lists minimally unless user provided entries.";
+
+    const storageKeys = {
+      template: "schemaTemplate",
+      state: "schemaState",
+      arrayTypes: "schemaArrayTypes",
+      wrap: "schemaWrap",
+      header: "schemaHeader"
+    };
+
+    const templateEditor = document.getElementById("templateEditor");
+    const templateFile = document.getElementById("templateFile");
+    const formContainer = document.getElementById("formContainer");
+    const outputArea = document.getElementById("output");
+    const parseError = document.getElementById("parseError");
+    const debugInfo = document.getElementById("debugInfo");
+    const wrapToggle = document.getElementById("wrapToggle");
+    const headerEditor = document.getElementById("headerEditor");
+
+    let templateObject = null;
+    let formState = null;
+    let templateState = null;
+    let commentMap = {};
+    let arrayTypeOverrides = {};
+
+    function saveToStorage() {
+      localStorage.setItem(storageKeys.template, templateEditor.value);
+      localStorage.setItem(storageKeys.state, JSON.stringify(formState || {}));
+      localStorage.setItem(storageKeys.arrayTypes, JSON.stringify(arrayTypeOverrides));
+      localStorage.setItem(storageKeys.wrap, wrapToggle.checked ? "1" : "0");
+      localStorage.setItem(storageKeys.header, headerEditor.value);
+    }
+
+    function loadFromStorage() {
+      const storedTemplate = localStorage.getItem(storageKeys.template);
+      const storedState = localStorage.getItem(storageKeys.state);
+      const storedArrayTypes = localStorage.getItem(storageKeys.arrayTypes);
+      const storedWrap = localStorage.getItem(storageKeys.wrap);
+      const storedHeader = localStorage.getItem(storageKeys.header);
+
+      if (storedTemplate) {
+        templateEditor.value = storedTemplate;
+      } else {
+        templateEditor.value = SAMPLE_TEMPLATE;
+      }
+
+      if (storedArrayTypes) {
+        try {
+          arrayTypeOverrides = JSON.parse(storedArrayTypes) || {};
+        } catch {
+          arrayTypeOverrides = {};
+        }
+      }
+
+      if (storedWrap) {
+        wrapToggle.checked = storedWrap === "1";
+      }
+
+      headerEditor.value = storedHeader || DEFAULT_HEADER;
+
+      if (storedState) {
+        try {
+          formState = JSON.parse(storedState);
+        } catch {
+          formState = null;
+        }
+      }
+    }
+
+    function deepClone(value) {
+      if (Array.isArray(value)) {
+        return value.map((item) => deepClone(item));
+      }
+      if (value && typeof value === "object") {
+        const result = {};
+        Object.keys(value).forEach((key) => {
+          result[key] = deepClone(value[key]);
+        });
+        return result;
+      }
+      if (value === null || value === undefined) {
+        return "";
+      }
+      return value;
+    }
+
+    function normalizeTemplate(value) {
+      if (Array.isArray(value)) {
+        return value.map((item) => normalizeTemplate(item));
+      }
+      if (value && typeof value === "object") {
+        const result = {};
+        Object.keys(value).forEach((key) => {
+          result[key] = normalizeTemplate(value[key]);
+        });
+        return result;
+      }
+      if (value === null || value === undefined) {
+        return "";
+      }
+      return value;
+    }
+
+    function parseComments(yamlText) {
+      const lines = yamlText.split(/\r?\n/);
+      const stack = [];
+      const comments = {};
+      lines.forEach((line) => {
+        const match = line.match(/^(\s*)([^#:\n]+):[^#\n]*#(.*)$/);
+        if (!match) {
+          return;
+        }
+        const indent = match[1].length;
+        const key = match[2].trim();
+        const comment = match[3].trim();
+        while (stack.length && stack[stack.length - 1].indent >= indent) {
+          stack.pop();
+        }
+        stack.push({ key, indent });
+        const path = stack.map((item) => item.key).join(".");
+        comments[path] = comment;
+      });
+      return comments;
+    }
+
+    function parseTemplate() {
+      const text = templateEditor.value.trim();
+      if (!text) {
+        parseError.textContent = "Template is empty.";
+        return;
+      }
+      try {
+        const parsed = jsyaml.load(text);
+        templateObject = parsed || {};
+        templateState = normalizeTemplate(templateObject);
+        commentMap = parseComments(text);
+        parseError.textContent = "";
+
+        if (!formState) {
+          formState = deepClone(templateState);
+        }
+
+        formState = mergeStateWithTemplate(formState, templateState);
+        renderForm();
+        generateOutput();
+        saveToStorage();
+      } catch (error) {
+        parseError.textContent = `YAML parsing error: ${error.message}`;
+      }
+    }
+
+    function mergeStateWithTemplate(state, template) {
+      if (Array.isArray(template)) {
+        if (!Array.isArray(state)) {
+          return deepClone(template);
+        }
+        return state.map((item) => item);
+      }
+      if (template && typeof template === "object") {
+        const result = {};
+        Object.keys(template).forEach((key) => {
+          if (state && Object.prototype.hasOwnProperty.call(state, key)) {
+            result[key] = mergeStateWithTemplate(state[key], template[key]);
+          } else {
+            result[key] = deepClone(template[key]);
+          }
+        });
+        return result;
+      }
+      if (state === undefined || state === null) {
+        return template;
+      }
+      return state;
+    }
+
+    function buildPath(base, key) {
+      return base ? `${base}.${key}` : key;
+    }
+
+    function inferType(value, templateValue) {
+      if (Array.isArray(value)) {
+        return "array";
+      }
+      if (value && typeof value === "object") {
+        return "object";
+      }
+      if (typeof value === "number") {
+        return "number";
+      }
+      if (typeof value === "boolean") {
+        return "boolean";
+      }
+      if (templateValue === "" || value === "") {
+        return "string";
+      }
+      return typeof value === "string" ? "string" : "string";
+    }
+
+    function setValueAtPath(path, value) {
+      const parts = path.split(".");
+      let target = formState;
+      parts.slice(0, -1).forEach((key) => {
+        if (!target[key] || typeof target[key] !== "object") {
+          target[key] = {};
+        }
+        target = target[key];
+      });
+      target[parts[parts.length - 1]] = value;
+      saveToStorage();
+    }
+
+    function getValueAtPath(path) {
+      if (!path) {
+        return formState;
+      }
+      return path.split(".").reduce((acc, key) => (acc ? acc[key] : undefined), formState);
+    }
+
+    function renderForm() {
+      formContainer.innerHTML = "";
+      debugInfo.textContent = "";
+      if (!templateState) {
+        return;
+      }
+      const debugLines = [];
+      const content = renderNode(templateState, "", debugLines);
+      formContainer.appendChild(content);
+      debugInfo.textContent = debugLines.join("\n");
+    }
+
+    function renderNode(node, path, debugLines) {
+      const type = inferType(node, node);
+      debugLines.push(`${path || "(root)"}: ${type}`);
+
+      if (type === "object") {
+        const wrapper = document.createElement("div");
+        Object.keys(node).forEach((key) => {
+          const childPath = buildPath(path, key);
+          const child = renderNode(node[key], childPath, debugLines);
+          if (child) {
+            wrapper.appendChild(child);
+          }
+        });
+        if (!path) {
+          return wrapper;
+        }
+        const details = document.createElement("details");
+        details.open = true;
+        const summary = document.createElement("summary");
+        summary.textContent = path.split(".").slice(-1)[0];
+        details.appendChild(summary);
+        details.appendChild(wrapper);
+        const addFieldButton = createAddFieldButton(path);
+        if (Object.keys(node).length === 0) {
+          details.appendChild(addFieldButton);
+        }
+        return details;
+      }
+
+      if (type === "array") {
+        return renderArray(node, path, debugLines);
+      }
+
+      return renderScalar(node, path, type);
+    }
+
+    function renderScalar(value, path, type) {
+      const field = document.createElement("div");
+      field.className = "field";
+      const label = document.createElement("label");
+      label.textContent = path.split(".").slice(-1)[0];
+      label.setAttribute("for", path);
+      field.appendChild(label);
+
+      let input;
+      const comment = commentMap[path];
+      const stringValue = value === null || value === undefined ? "" : value;
+      const useTextarea =
+        typeof stringValue === "string" &&
+        (stringValue.includes("\n") || (comment && comment.includes("line")));
+
+      if (useTextarea) {
+        input = document.createElement("textarea");
+        input.rows = 3;
+      } else if (type === "number") {
+        input = document.createElement("input");
+        input.type = "number";
+      } else if (type === "boolean") {
+        input = document.createElement("select");
+        const optTrue = new Option("true", "true");
+        const optFalse = new Option("false", "false");
+        input.add(optTrue);
+        input.add(optFalse);
+      } else {
+        input = document.createElement("input");
+        input.type = "text";
+      }
+
+      input.id = path;
+      input.value = stringValue === null ? "" : String(stringValue);
+      input.addEventListener("input", (event) => {
+        const newValue = event.target.value;
+        if (type === "number") {
+          setValueAtPath(path, newValue === "" ? "" : Number(newValue));
+        } else if (type === "boolean") {
+          setValueAtPath(path, newValue === "true");
+        } else {
+          setValueAtPath(path, newValue);
+        }
+      });
+
+      field.appendChild(input);
+
+      if (comment) {
+        const helper = document.createElement("div");
+        helper.className = "helper";
+        helper.textContent = comment;
+        field.appendChild(helper);
+      }
+
+      return field;
+    }
+
+    function renderArray(arrayValue, path, debugLines) {
+      const container = document.createElement("div");
+      const details = document.createElement("details");
+      details.open = true;
+      const summary = document.createElement("summary");
+      summary.textContent = path.split(".").slice(-1)[0];
+      details.appendChild(summary);
+
+      const list = document.createElement("div");
+      const comment = commentMap[path];
+
+      const arrayType = getArrayType(path, arrayValue);
+
+      const typeSelector = document.createElement("select");
+      typeSelector.className = "small";
+      typeSelector.innerHTML = `
+        <option value="scalar">Array of scalars</option>
+        <option value="object">Array of objects</option>
+      `;
+      typeSelector.value = arrayType;
+      typeSelector.addEventListener("change", (event) => {
+        arrayTypeOverrides[path] = event.target.value;
+        if (event.target.value === "scalar") {
+          setValueAtPath(path, []);
+        } else {
+          setValueAtPath(path, []);
+        }
+        renderForm();
+      });
+
+      const headerRow = document.createElement("div");
+      headerRow.className = "inline";
+      headerRow.appendChild(typeSelector);
+      details.appendChild(headerRow);
+
+      if (comment) {
+        const helper = document.createElement("div");
+        helper.className = "helper";
+        helper.textContent = comment;
+        details.appendChild(helper);
+      }
+
+      const currentArray = getValueAtPath(path) || [];
+
+      currentArray.forEach((item, index) => {
+        const itemWrapper = document.createElement("div");
+        itemWrapper.className = arrayType === "object" ? "object-card" : "array-item";
+        const header = document.createElement("div");
+        header.className = "array-item-header";
+        const title = document.createElement("strong");
+        title.textContent = `${arrayType === "object" ? "Entry" : "Item"} ${index + 1}`;
+        const remove = document.createElement("button");
+        remove.textContent = "Remove";
+        remove.className = "danger small";
+        remove.addEventListener("click", () => {
+          currentArray.splice(index, 1);
+          setValueAtPath(path, currentArray);
+          renderForm();
+          generateOutput();
+        });
+        header.appendChild(title);
+        header.appendChild(remove);
+        itemWrapper.appendChild(header);
+
+        if (arrayType === "object") {
+          const itemPath = `${path}[${index}]`;
+          const templateItem = getTemplateArrayItem(path);
+          const mergedItem = mergeStateWithTemplate(item, templateItem || {});
+          currentArray[index] = mergedItem;
+          const itemContent = renderNode(mergedItem, buildPath(path, index), debugLines);
+          if (itemContent) {
+            itemWrapper.appendChild(itemContent);
+          }
+          const addFieldButton = createAddFieldButton(buildPath(path, index));
+          itemWrapper.appendChild(addFieldButton);
+        } else {
+          const itemField = document.createElement("input");
+          itemField.type = "text";
+          itemField.value = item === null || item === undefined ? "" : String(item);
+          itemField.addEventListener("input", (event) => {
+            currentArray[index] = event.target.value;
+            setValueAtPath(path, currentArray);
+          });
+          itemWrapper.appendChild(itemField);
+        }
+        list.appendChild(itemWrapper);
+      });
+
+      const addButton = document.createElement("button");
+      addButton.textContent = arrayType === "object" ? "Add entry" : "Add item";
+      addButton.className = "secondary";
+      addButton.addEventListener("click", () => {
+        const newArray = Array.isArray(currentArray) ? currentArray : [];
+        if (arrayType === "object") {
+          const templateItem = getTemplateArrayItem(path) || {};
+          newArray.push(deepClone(templateItem));
+        } else {
+          newArray.push("");
+        }
+        setValueAtPath(path, newArray);
+        renderForm();
+        generateOutput();
+      });
+
+      list.appendChild(addButton);
+      details.appendChild(list);
+
+      container.appendChild(details);
+      return container;
+    }
+
+    function getArrayType(path, arrayValue) {
+      if (arrayTypeOverrides[path]) {
+        return arrayTypeOverrides[path];
+      }
+      if (arrayValue.length > 0 && arrayValue.some((item) => item && typeof item === "object")) {
+        return "object";
+      }
+      const templateItem = getTemplateArrayItem(path);
+      if (templateItem && typeof templateItem === "object" && !Array.isArray(templateItem)) {
+        return "object";
+      }
+      return "scalar";
+    }
+
+    function getTemplateArrayItem(path) {
+      if (!templateState) {
+        return null;
+      }
+      const parts = path.split(".");
+      let target = templateState;
+      for (const part of parts) {
+        if (!target) {
+          return null;
+        }
+        target = target[part];
+      }
+      if (Array.isArray(target) && target.length > 0) {
+        return target[0];
+      }
+      return null;
+    }
+
+    function createAddFieldButton(path) {
+      const button = document.createElement("button");
+      button.textContent = "Add field";
+      button.className = "secondary small";
+      button.addEventListener("click", () => {
+        const key = prompt("Field name?");
+        if (!key) {
+          return;
+        }
+        const target = getValueAtPath(path);
+        if (target && typeof target === "object" && !Array.isArray(target)) {
+          target[key] = "";
+          setValueAtPath(path, target);
+          renderForm();
+        }
+      });
+      return button;
+    }
+
+    function generateOutput() {
+      if (!formState) {
+        return;
+      }
+      const yaml = jsyaml.dump(formState, {
+        indent: 2,
+        lineWidth: 120,
+        noCompatMode: true,
+        styles: {
+          "!!str": "plain"
+        }
+      });
+
+      if (wrapToggle.checked) {
+        outputArea.value = `${headerEditor.value.trim()}\n\n${yaml}`.trim();
+      } else {
+        outputArea.value = yaml.trim();
+      }
+      saveToStorage();
+    }
+
+    function resetToDefaults() {
+      if (!templateState) {
+        return;
+      }
+      formState = deepClone(templateState);
+      renderForm();
+      generateOutput();
+      saveToStorage();
+    }
+
+    function copyOutput() {
+      const text = outputArea.value;
+      if (!navigator.clipboard) {
+        outputArea.select();
+        document.execCommand("copy");
+        return;
+      }
+      navigator.clipboard.writeText(text);
+    }
+
+    document.getElementById("parseTemplate").addEventListener("click", parseTemplate);
+    document.getElementById("loadSample").addEventListener("click", () => {
+      templateEditor.value = SAMPLE_TEMPLATE;
+      formState = null;
+      parseTemplate();
+    });
+
+    document.getElementById("generateOutput").addEventListener("click", generateOutput);
+    document.getElementById("copyOutput").addEventListener("click", copyOutput);
+    document.getElementById("copyOutputFooter").addEventListener("click", copyOutput);
+    document.getElementById("resetTemplate").addEventListener("click", resetToDefaults);
+
+    templateFile.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (loadEvent) => {
+        templateEditor.value = loadEvent.target.result;
+        formState = null;
+        parseTemplate();
+      };
+      reader.readAsText(file);
+    });
+
+    wrapToggle.addEventListener("change", generateOutput);
+    headerEditor.addEventListener("input", generateOutput);
+
+    loadFromStorage();
+    parseTemplate();
+  </script>
+</body>
+</html>
