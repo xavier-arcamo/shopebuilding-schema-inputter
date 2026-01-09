@@ -211,6 +211,33 @@
       margin-top: 8px;
     }
 
+    .collapsible {
+      background: var(--panel);
+      margin-top: 12px;
+    }
+
+    .theme-controls {
+      display: grid;
+      gap: 12px;
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .theme-item label {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .theme-item .inline input[type="text"] {
+      flex: 1;
+    }
+
     .muted {
       color: var(--muted);
       font-size: 13px;
@@ -237,33 +264,100 @@
 <body>
   <header>
     <h1>YAML Prompt Schema Builder</h1>
-    <div class="top-controls">
-      <div class="control-panel">
-        <label for="templateFile">Upload YAML Template</label>
-        <input type="file" id="templateFile" accept=".yaml,.yml" />
-        <button id="loadSample" class="secondary">Load Sample Template</button>
-        <label for="templateEditor">Template Editor</label>
-        <textarea id="templateEditor" spellcheck="false"></textarea>
-        <div class="inline">
-          <button id="parseTemplate">Parse / Refresh Form</button>
-          <button id="resetTemplate" class="secondary">Reset to Template Defaults</button>
+    <details id="topControls" class="collapsible" open>
+      <summary>Template &amp; Output Controls</summary>
+      <div class="top-controls">
+        <div class="control-panel">
+          <label for="templateFile">Upload YAML Template</label>
+          <input type="file" id="templateFile" accept=".yaml,.yml" />
+          <button id="loadSample" class="secondary">Load Sample Template</button>
+          <label for="templateEditor">Template Editor</label>
+          <textarea id="templateEditor" spellcheck="false"></textarea>
+          <div class="inline">
+            <button id="parseTemplate">Parse / Refresh Form</button>
+            <button id="resetTemplate" class="secondary">Reset to Template Defaults</button>
+          </div>
+          <div id="parseError" class="error" role="alert" aria-live="polite"></div>
         </div>
-        <div id="parseError" class="error" role="alert" aria-live="polite"></div>
+        <div class="control-panel">
+          <label for="wrapToggle">Wrap as LLM instruction</label>
+          <div class="inline">
+            <input type="checkbox" id="wrapToggle" />
+            <span class="muted">Include instruction header before YAML output.</span>
+          </div>
+          <label for="headerEditor">Instruction Header</label>
+          <textarea id="headerEditor" rows="4"></textarea>
+          <div class="inline">
+            <button id="generateOutput">Generate YAML Schema</button>
+            <button id="copyOutput" class="secondary">Copy Output</button>
+          </div>
+        </div>
       </div>
-      <div class="control-panel">
-        <label for="wrapToggle">Wrap as LLM instruction</label>
-        <div class="inline">
-          <input type="checkbox" id="wrapToggle" />
-          <span class="muted">Include instruction header before YAML output.</span>
+    </details>
+    <details id="themeControls" class="collapsible">
+      <summary>Color themes</summary>
+      <div class="theme-controls">
+        <div class="field">
+          <label for="themePreset">Theme preset</label>
+          <select id="themePreset">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="custom">Custom</option>
+          </select>
         </div>
-        <label for="headerEditor">Instruction Header</label>
-        <textarea id="headerEditor" rows="4"></textarea>
-        <div class="inline">
-          <button id="generateOutput">Generate YAML Schema</button>
-          <button id="copyOutput" class="secondary">Copy Output</button>
+        <div class="theme-grid">
+          <div class="theme-item">
+            <label for="themeBg">Background</label>
+            <div class="inline">
+              <input type="color" id="themeBg" data-theme-var="--bg" />
+              <input type="text" id="themeBgText" data-theme-text="--bg" />
+            </div>
+          </div>
+          <div class="theme-item">
+            <label for="themePanel">Panels</label>
+            <div class="inline">
+              <input type="color" id="themePanel" data-theme-var="--panel" />
+              <input type="text" id="themePanelText" data-theme-text="--panel" />
+            </div>
+          </div>
+          <div class="theme-item">
+            <label for="themeBorder">Borders</label>
+            <div class="inline">
+              <input type="color" id="themeBorder" data-theme-var="--border" />
+              <input type="text" id="themeBorderText" data-theme-text="--border" />
+            </div>
+          </div>
+          <div class="theme-item">
+            <label for="themeAccent">Accent</label>
+            <div class="inline">
+              <input type="color" id="themeAccent" data-theme-var="--accent" />
+              <input type="text" id="themeAccentText" data-theme-text="--accent" />
+            </div>
+          </div>
+          <div class="theme-item">
+            <label for="themeText">Text</label>
+            <div class="inline">
+              <input type="color" id="themeText" data-theme-var="--text" />
+              <input type="text" id="themeTextText" data-theme-text="--text" />
+            </div>
+          </div>
+          <div class="theme-item">
+            <label for="themeMuted">Muted text</label>
+            <div class="inline">
+              <input type="color" id="themeMuted" data-theme-var="--muted" />
+              <input type="text" id="themeMutedText" data-theme-text="--muted" />
+            </div>
+          </div>
+          <div class="theme-item">
+            <label for="themeDanger">Danger</label>
+            <div class="inline">
+              <input type="color" id="themeDanger" data-theme-var="--danger" />
+              <input type="text" id="themeDangerText" data-theme-text="--danger" />
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </details>
   </header>
 
   <main>
@@ -376,7 +470,9 @@ meta:
       state: "schemaState",
       arrayTypes: "schemaArrayTypes",
       wrap: "schemaWrap",
-      header: "schemaHeader"
+      header: "schemaHeader",
+      themeMode: "schemaThemeMode",
+      themeColors: "schemaThemeColors"
     };
 
     const templateEditor = document.getElementById("templateEditor");
@@ -387,12 +483,37 @@ meta:
     const debugInfo = document.getElementById("debugInfo");
     const wrapToggle = document.getElementById("wrapToggle");
     const headerEditor = document.getElementById("headerEditor");
+    const themePreset = document.getElementById("themePreset");
+    const themeVarInputs = Array.from(document.querySelectorAll("[data-theme-var]"));
+    const themeTextInputs = Array.from(document.querySelectorAll("[data-theme-text]"));
 
     let templateObject = null;
     let formState = null;
     let templateState = null;
     let commentMap = {};
     let arrayTypeOverrides = {};
+    let themeMode = "light";
+
+    const themePresets = {
+      light: {
+        "--bg": "#f7f7fb",
+        "--panel": "#ffffff",
+        "--border": "#d6d6e3",
+        "--accent": "#3b6dde",
+        "--text": "#1f2430",
+        "--muted": "#5b6270",
+        "--danger": "#b91c1c"
+      },
+      dark: {
+        "--bg": "#10131a",
+        "--panel": "#1b202b",
+        "--border": "#2a3242",
+        "--accent": "#7aa2ff",
+        "--text": "#edf0f6",
+        "--muted": "#b3b8c4",
+        "--danger": "#f87171"
+      }
+    };
 
     function saveToStorage() {
       localStorage.setItem(storageKeys.template, templateEditor.value);
@@ -400,6 +521,8 @@ meta:
       localStorage.setItem(storageKeys.arrayTypes, JSON.stringify(arrayTypeOverrides));
       localStorage.setItem(storageKeys.wrap, wrapToggle.checked ? "1" : "0");
       localStorage.setItem(storageKeys.header, headerEditor.value);
+      localStorage.setItem(storageKeys.themeMode, themeMode);
+      localStorage.setItem(storageKeys.themeColors, JSON.stringify(getThemeColorsFromInputs()));
     }
 
     function loadFromStorage() {
@@ -408,6 +531,8 @@ meta:
       const storedArrayTypes = localStorage.getItem(storageKeys.arrayTypes);
       const storedWrap = localStorage.getItem(storageKeys.wrap);
       const storedHeader = localStorage.getItem(storageKeys.header);
+      const storedThemeMode = localStorage.getItem(storageKeys.themeMode);
+      const storedThemeColors = localStorage.getItem(storageKeys.themeColors);
 
       if (storedTemplate) {
         templateEditor.value = storedTemplate;
@@ -429,6 +554,25 @@ meta:
 
       headerEditor.value = storedHeader || DEFAULT_HEADER;
 
+      if (storedThemeMode) {
+        themeMode = storedThemeMode;
+        themePreset.value = storedThemeMode;
+      }
+
+      if (storedThemeColors) {
+        try {
+          const parsedColors = JSON.parse(storedThemeColors);
+          applyThemeColors(parsedColors, themeMode);
+          syncThemeInputs(parsedColors);
+        } catch {
+          applyThemeColors(themePresets.light, "light");
+          syncThemeInputs(themePresets.light);
+        }
+      } else {
+        applyThemeColors(themePresets[themeMode] || themePresets.light, themeMode);
+        syncThemeInputs(themePresets[themeMode] || themePresets.light);
+      }
+
       if (storedState) {
         try {
           formState = JSON.parse(storedState);
@@ -436,6 +580,52 @@ meta:
           formState = null;
         }
       }
+    }
+
+    function applyThemeColors(colors, mode) {
+      if (!colors) {
+        return;
+      }
+      Object.entries(colors).forEach(([variable, value]) => {
+        if (value) {
+          document.documentElement.style.setProperty(variable, value);
+        }
+      });
+      if (mode && mode !== "custom") {
+        document.documentElement.style.colorScheme = mode;
+      } else {
+        document.documentElement.style.colorScheme = "light";
+      }
+    }
+
+    function syncThemeInputs(colors) {
+      themeVarInputs.forEach((input) => {
+        const variable = input.dataset.themeVar;
+        if (colors[variable]) {
+          input.value = colors[variable];
+        }
+      });
+      themeTextInputs.forEach((input) => {
+        const variable = input.dataset.themeText;
+        if (colors[variable]) {
+          input.value = colors[variable];
+        }
+      });
+    }
+
+    function getThemeColorsFromInputs() {
+      const colors = {};
+      themeTextInputs.forEach((input) => {
+        const variable = input.dataset.themeText;
+        colors[variable] = input.value;
+      });
+      return colors;
+    }
+
+    function updateThemeFromInputs() {
+      const colors = getThemeColorsFromInputs();
+      applyThemeColors(colors, themeMode);
+      saveToStorage();
     }
 
     function deepClone(value) {
@@ -923,6 +1113,48 @@ meta:
 
     wrapToggle.addEventListener("change", generateOutput);
     headerEditor.addEventListener("input", generateOutput);
+
+    themePreset.addEventListener("change", (event) => {
+      themeMode = event.target.value;
+      if (themeMode === "custom") {
+        updateThemeFromInputs();
+        return;
+      }
+      const preset = themePresets[themeMode] || themePresets.light;
+      applyThemeColors(preset, themeMode);
+      syncThemeInputs(preset);
+      saveToStorage();
+    });
+
+    themeVarInputs.forEach((input) => {
+      input.addEventListener("input", (event) => {
+        const variable = event.target.dataset.themeVar;
+        const textInput = themeTextInputs.find(
+          (item) => item.dataset.themeText === variable
+        );
+        if (textInput) {
+          textInput.value = event.target.value;
+        }
+        themeMode = "custom";
+        themePreset.value = "custom";
+        updateThemeFromInputs();
+      });
+    });
+
+    themeTextInputs.forEach((input) => {
+      input.addEventListener("input", (event) => {
+        const variable = event.target.dataset.themeText;
+        const colorInput = themeVarInputs.find(
+          (item) => item.dataset.themeVar === variable
+        );
+        if (colorInput && /^#([0-9a-f]{3}){1,2}$/i.test(event.target.value)) {
+          colorInput.value = event.target.value;
+        }
+        themeMode = "custom";
+        themePreset.value = "custom";
+        updateThemeFromInputs();
+      });
+    });
 
     loadFromStorage();
     parseTemplate();
