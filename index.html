@@ -969,11 +969,12 @@ meta:
     function renderForm() {
       formContainer.innerHTML = "";
       debugInfo.textContent = "";
-      if (!templateState) {
+      if (!templateState || !formState) {
         return;
       }
+      formState = mergeStateWithTemplate(formState, templateState);
       const debugLines = [];
-      const content = renderNode(templateState, "", debugLines);
+      const content = renderNode(formState, "", debugLines);
       formContainer.appendChild(content);
       debugInfo.textContent = debugLines.join("\n");
     }
