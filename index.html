@@ -37,9 +37,35 @@
       z-index: 10;
     }
 
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     header h1 {
       margin: 0 0 12px 0;
       font-size: 20px;
+    }
+
+    header.minimized {
+      padding: 12px 20px;
+    }
+
+    header.minimized h1 {
+      margin-bottom: 0;
+    }
+
+    header.minimized details {
+      display: none;
     }
 
     .top-controls {
@@ -293,7 +319,13 @@
 </head>
 <body>
   <header>
-    <h1>YAML Prompt Schema Builder</h1>
+    <div class="header-row">
+      <h1>YAML Prompt Schema Builder</h1>
+      <div class="header-actions">
+        <button id="toggleHeader" class="secondary">Minimize Top Panel</button>
+        <button id="resetApp" class="danger">Reset App</button>
+      </div>
+    </div>
     <details id="topControls" class="collapsible" open>
       <summary>Template &amp; Output Controls</summary>
       <div class="top-controls">
@@ -506,11 +538,11 @@ meta:
     const storageKeys = {
       template: "schemaTemplate",
       state: "schemaState",
-      arrayTypes: "schemaArrayTypes",
       wrap: "schemaWrap",
       header: "schemaHeader",
       themeMode: "schemaThemeMode",
-      themeColors: "schemaThemeColors"
+      themeColors: "schemaThemeColors",
+      headerMinimized: "schemaHeaderMinimized"
     };
 
     const templateEditor = document.getElementById("templateEditor");
@@ -529,7 +561,6 @@ meta:
     let formState = null;
     let templateState = null;
     let commentMap = {};
-    let arrayTypeOverrides = {};
     let themeMode = "light";
 
     const themePresets = {
@@ -628,34 +659,29 @@ meta:
     function saveToStorage() {
       localStorage.setItem(storageKeys.template, templateEditor.value);
       localStorage.setItem(storageKeys.state, JSON.stringify(formState || {}));
-      localStorage.setItem(storageKeys.arrayTypes, JSON.stringify(arrayTypeOverrides));
       localStorage.setItem(storageKeys.wrap, wrapToggle.checked ? "1" : "0");
       localStorage.setItem(storageKeys.header, headerEditor.value);
       localStorage.setItem(storageKeys.themeMode, themeMode);
       localStorage.setItem(storageKeys.themeColors, JSON.stringify(getThemeColorsFromInputs()));
+      localStorage.setItem(
+        storageKeys.headerMinimized,
+        document.querySelector("header").classList.contains("minimized") ? "1" : "0"
+      );
     }
 
     function loadFromStorage() {
       const storedTemplate = localStorage.getItem(storageKeys.template);
       const storedState = localStorage.getItem(storageKeys.state);
-      const storedArrayTypes = localStorage.getItem(storageKeys.arrayTypes);
       const storedWrap = localStorage.getItem(storageKeys.wrap);
       const storedHeader = localStorage.getItem(storageKeys.header);
       const storedThemeMode = localStorage.getItem(storageKeys.themeMode);
       const storedThemeColors = localStorage.getItem(storageKeys.themeColors);
+      const storedHeaderMinimized = localStorage.getItem(storageKeys.headerMinimized);
 
       if (storedTemplate) {
         templateEditor.value = storedTemplate;
       } else {
         templateEditor.value = SAMPLE_TEMPLATE;
-      }
-
-      if (storedArrayTypes) {
-        try {
-          arrayTypeOverrides = JSON.parse(storedArrayTypes) || {};
-        } catch {
-          arrayTypeOverrides = {};
-        }
       }
 
       if (storedWrap) {
@@ -689,6 +715,11 @@ meta:
         } catch {
           formState = null;
         }
+      }
+
+      if (storedHeaderMinimized === "1") {
+        document.querySelector("header").classList.add("minimized");
+        document.getElementById("toggleHeader").textContent = "Expand Top Panel";
       }
     }
 
@@ -1088,31 +1119,6 @@ meta:
 
       const arrayType = getArrayType(path, arrayValue);
 
-      const typeSelector = document.createElement("select");
-      typeSelector.className = "small";
-      typeSelector.innerHTML = `
-        <option value="scalar">Array of scalars</option>
-        <option value="object">Array of objects</option>
-      `;
-      typeSelector.value = arrayType;
-      if (comment) {
-        typeSelector.title = comment;
-      }
-      typeSelector.addEventListener("change", (event) => {
-        arrayTypeOverrides[path] = event.target.value;
-        if (event.target.value === "scalar") {
-          setValueAtPath(path, []);
-        } else {
-          setValueAtPath(path, []);
-        }
-        renderForm();
-      });
-
-      const headerRow = document.createElement("div");
-      headerRow.className = "inline";
-      headerRow.appendChild(typeSelector);
-      details.appendChild(headerRow);
-
       if (comment) {
         const helper = document.createElement("div");
         helper.className = "helper";
@@ -1128,7 +1134,7 @@ meta:
         const header = document.createElement("div");
         header.className = "array-item-header";
         const title = document.createElement("strong");
-        title.textContent = `${arrayType === "object" ? "Entry" : "Item"} ${index + 1}`;
+        title.textContent = `Item ${index + 1}`;
         const remove = document.createElement("button");
         remove.textContent = "Remove";
         remove.className = "danger small";
@@ -1170,7 +1176,7 @@ meta:
       });
 
       const addButton = document.createElement("button");
-      addButton.textContent = arrayType === "object" ? "Add entry" : "Add item";
+      addButton.textContent = "Add item";
       addButton.className = "secondary";
       addButton.addEventListener("click", () => {
         const newArray = Array.isArray(currentArray) ? currentArray : [];
@@ -1193,9 +1199,6 @@ meta:
     }
 
     function getArrayType(path, arrayValue) {
-      if (arrayTypeOverrides[path]) {
-        return arrayTypeOverrides[path];
-      }
       if (arrayValue.length > 0 && arrayValue.some((item) => item && typeof item === "object")) {
         return "object";
       }
@@ -1274,6 +1277,24 @@ meta:
       saveToStorage();
     }
 
+    function resetAppDefaults() {
+      Object.values(storageKeys).forEach((key) => localStorage.removeItem(key));
+      templateEditor.value = SAMPLE_TEMPLATE;
+      headerEditor.value = DEFAULT_HEADER;
+      wrapToggle.checked = false;
+      themeMode = "light";
+      themePreset.value = "light";
+      applyThemeColors(themePresets.light, "light");
+      syncThemeInputs(themePresets.light);
+      templateFile.value = "";
+      formState = null;
+      parseTemplate();
+      const headerEl = document.querySelector("header");
+      headerEl.classList.remove("minimized");
+      document.getElementById("toggleHeader").textContent = "Minimize Top Panel";
+      saveToStorage();
+    }
+
     function copyOutput() {
       const text = outputArea.value;
       if (!navigator.clipboard) {
@@ -1295,6 +1316,16 @@ meta:
     document.getElementById("copyOutput").addEventListener("click", copyOutput);
     document.getElementById("copyOutputFooter").addEventListener("click", copyOutput);
     document.getElementById("resetTemplate").addEventListener("click", resetToDefaults);
+    document.getElementById("resetApp").addEventListener("click", resetAppDefaults);
+    document.getElementById("toggleHeader").addEventListener("click", () => {
+      const headerEl = document.querySelector("header");
+      headerEl.classList.toggle("minimized");
+      const toggleButton = document.getElementById("toggleHeader");
+      toggleButton.textContent = headerEl.classList.contains("minimized")
+        ? "Expand Top Panel"
+        : "Minimize Top Panel";
+      saveToStorage();
+    });
 
     templateFile.addEventListener("change", (event) => {
       const file = event.target.files[0];
